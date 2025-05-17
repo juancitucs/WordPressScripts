@@ -10,7 +10,7 @@ WP_DB_USER="wordpress"
 WP_DB_NAME="wordpress"
 DB_REPL_USER="repl"
 NETMASK="24"
-ROLE=$(hostname)
+ROLE=$(hostnamectl hostname)
 
 # Mapas de IPs según hostname
 declare -A IP_MAP_ENP0S3=(
@@ -44,6 +44,7 @@ detect_php_sock() {
 }
 
 set_static_ip() {
+  cp /etc/netplan/50-cloud-init.yaml /etc/netplan/50-cloud-init.yaml.backup
   local IP3=${IP_MAP_ENP0S3[$ROLE]:-}
   local IP8=${IP_MAP_ENP0S8[$ROLE]:-}
   [[ -z $IP3 || -z $IP8 ]] && { echo "Rol $ROLE sin IP"; exit 1; }
