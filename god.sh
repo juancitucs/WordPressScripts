@@ -69,7 +69,6 @@ network:
         - to: 0.0.0.0/0
           via: 20.20.20.1
           metric: 200
-       addresses: [8.8.8.8, 8.8.4.4]
 EOF
   netplan apply
   echo "IPs: enp0s3=$IP3, enp0s8=$IP8"
