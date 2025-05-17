@@ -15,19 +15,17 @@ Este script ayuda a configurar 5 máquinas virtuales en un sistema distribuido L
 wget https://raw.githubusercontent.com/juancitucs/WordPressScripts/refs/heads/master/god.sh
 ```
 2. Dale permisos de ejecución:
-   ```bash
-   sudo chmod +x god.sh
-   ```
+```bash
+sudo chmod +x god.sh
+```
 3. Ejecuta:
-
-   ```bash
-   sudo bash god.sh
-   ```
+```bash
+sudo bash god.sh
+```
 
 ### Menú Principal
 
 Al ejecutar, verás:
-
 ```
 Seleccione una opción:
 1) Automático
