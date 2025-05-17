@@ -47,7 +47,7 @@ set_static_ip() {
   local IP3=${IP_MAP_ENP0S3[$ROLE]:-}
   local IP8=${IP_MAP_ENP0S8[$ROLE]:-}
   [[ -z $IP3 || -z $IP8 ]] && { echo "Rol $ROLE sin IP"; exit 1; }
-  cat > /etc/netplan/50-static.yaml <<EOF
+  cat > /etc/netplan/50-cloud-init.yaml <<EOF
 network:
   version: 2
   ethernets:
