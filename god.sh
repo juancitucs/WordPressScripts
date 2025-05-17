@@ -1,7 +1,5 @@
 
 #!/usr/bin/env bash
-
-
 set -euo pipefail
 
 # vm.sh: Configuración LEMP + WordPress + MySQL Replicación + LB
@@ -17,7 +15,7 @@ WP_DB_NAME="wordpress"
 DB_REPL_USER="repl"
 
 # Mapas de IPs según hostname:
-# enp0s3 (aplicación): 10.10.10.x
+# enp0s3 (NAT interna): 10.10.10.x
 declare -A IP_MAP_ENP0S3=(
   [master]="10.10.10.100"
   [worker01]="10.10.10.101"
@@ -25,13 +23,13 @@ declare -A IP_MAP_ENP0S3=(
   [worker03]="10.10.10.103"
   [worker04]="10.10.10.104"
 )
-# enp0s8 (gestión): 20.20.20.x
+# enp0s8 (host): gestión/SSH y visualización distribuidos
 declare -A IP_MAP_ENP0S8=(
-  [master]="20.20.20.100"
-  [worker01]="20.20.20.101"
-  [worker02]="20.20.20.102"
-  [worker03]="20.20.20.103"
-  [worker04]="20.20.20.104"
+  [master]="20.20.20.21"
+  [worker01]="20.20.20.22"
+  [worker02]="20.20.20.23"
+  [worker03]="20.20.20.24"
+  [worker04]="20.20.20.25"
 )
 NETMASK="24"
 
@@ -50,19 +48,16 @@ print_menu() {
 
 # Detectar socket PHP-FPM automáticamente
 detect_php_sock() {
-  SOCK=$(find /run/php -type s -name '*.sock' | head -n1)
-  if [[ -z "$SOCK" ]]; then
+  find /run/php -type s -name '*.sock' | head -n1 || {
     echo "[ERROR] No se encontró socket de PHP-FPM en /run/php"
     exit 1
-  fi
-  echo "$SOCK"
+  }
 }
 
 set_static_ip() {
   IP3="${IP_MAP_ENP0S3[$ROLE]:-}"
   IP8="${IP_MAP_ENP0S8[$ROLE]:-}"
-  [[ -z "$IP3" || -z "$IP8" ]] && { echo "[ERROR] Rol '$ROLE' sin IP asignada"; exit 1; }
-  cat > /etc/netplan/50-static.yaml <<EOF
+  [[ -z "$IP3" || -z "$IP8" ]] && { echo "[ERROR]  cat > /etc/netplan/50-static.yaml <<EOF
 network:
   version: 2
   ethernets:
@@ -72,21 +67,19 @@ network:
         - ${IP3}/${NETMASK}
       nameservers:
         addresses: [8.8.8.8, 8.8.4.4]
-      routes:
-        - to: 0.0.0.0/0
-          via: 10.10.10.1
-          metric: 100
     enp0s8:
       dhcp4: no
       addresses:
         - ${IP8}/${NETMASK}
+      nameservers:
+        addresses: [8.8.8.8, 8.8.4.4]
       routes:
         - to: 0.0.0.0/0
           via: 20.20.20.1
-          metric: 200
+          metric: 100
 EOF
   netplan apply
-  echo "[INFO] IP configuradas: enp0s3=$IP3, enp0s8=$IP8"
+  echo "[INFO] IP configuradas: enp0s3=$IP3 (NAT), enp0s8=$IP8 (host)"
 }
 
 install_common() {
@@ -146,13 +139,13 @@ setup_wordpress() {
   sed -i "s/database_name_here/${WP_DB_NAME}/" /var/www/wordpress/wp-config.php
   sed -i "s/username_here/${WP_DB_USER}/" /var/www/wordpress/wp-config.php
   sed -i "s/password_here/${WP_DB_PASS}/" /var/www/wordpress/wp-config.php
-  sed -i "s/localhost/${IP_MAP_ENP0S3[worker03]}/" /var/www/wordpress/wp-config.php
+  sed -i "s/localhost/${IP_MAP_ENP0S8[worker03]}/" /var/www/wordpress/wp-config.php
 
   # Configurar sitio Nginx para WordPress
   cat > /etc/nginx/sites-available/wordpress.conf <<EOF
 server {
     listen 80;
-    server_name ${IP_MAP_ENP0S3[$ROLE]};
+    server_name ${IP_MAP_ENP0S8[$ROLE]};
     root /var/www/wordpress;
     index index.php index.html;
 
@@ -177,12 +170,12 @@ setup_load_balancer() {
   echo "[master] Configurando Load Balancer"
   cat > /etc/nginx/sites-available/lb.conf <<EOF
 upstream backend {
-  server ${IP_MAP_ENP0S3[worker01]};
-  server ${IP_MAP_ENP0S3[worker02]};
+  server ${IP_MAP_ENP0S8[worker01]};
+  server ${IP_MAP_ENP0S8[worker02]};
 }
 server {
   listen 80;
-  server_name ${IP_MAP_ENP0S3[master]};
+  server_name ${IP_MAP_ENP0S8[master]};
   location / {
     proxy_pass http://backend;
     proxy_set_header Host \$host;
@@ -218,8 +211,7 @@ main() {
       case "$ROLE" in
         worker03) setup_mysql_master ;;
         worker04) setup_mysql_slave ;;
-        worker01|worker02)
-          setup_wordpress ;;
+        worker01|worker02) setup_wordpress ;;
         master) setup_load_balancer ;;
         *) echo "[ERROR] Rol desconocido: $ROLE"; exit 1 ;;
       esac ;;
