@@ -57,6 +57,48 @@ network:
         - ${IP3}/${NETMASK}
       nameservers:
         addresses: [8.8.8.8, 8.8.4.4]
+      routes:
+        - to: 0.0.0.0/0
+          via: 10.10.10.1
+          metric: 100
+    enp0s8:
+      dhcp4: no
+      addresses:
+        - ${IP8}/${NETMASK}
+      routes:
+        - to: 0.0.0.0/0
+          via: 20.20.20.1
+          metric: 200
+EOF
+network:
+  version: 2
+  ethernets:
+    enp0s3:
+      dhcp4: no
+      addresses:
+        - ${IP3}/${NETMASK}
+      nameservers:
+        addresses: [8.8.8.8, 8.8.4.4]
+    enp0s8:
+      dhcp4: no
+      addresses:
+        - ${IP8}/${NETMASK}
+      nameservers:
+        addresses: [8.8.8.8, 8.8.4.4]
+      routes:
+        - to: 0.0.0.0/0
+          via: 20.20.20.1
+          metric: 100
+EOF
+network:
+  version: 2
+  ethernets:
+    enp0s3:
+      dhcp4: no
+      addresses:
+        - ${IP3}/${NETMASK}
+      nameservers:
+        addresses: [8.8.8.8, 8.8.4.4]
     enp0s8:
       dhcp4: no
       addresses:
