@@ -32,9 +32,6 @@ declare -A IP_MAP_ENP0S8=(
   [worker04]="20.20.20.104"
 )
 NETMASK="24"
-GATEWAY3="10.10.10.1"
-GATEWAY8="20.20.20.1"
-DNS="8.8.8.8"
 
 ROLE=$(hostname)
 
@@ -49,6 +46,16 @@ print_menu() {
   echo "0) Salir"
 }
 
+# Detectar socket PHP-FPM automáticamente
+detect_php_sock() {
+  SOCK=$(find /run/php -type s -name '*.sock' | head -n1)
+  if [[ -z "$SOCK" ]]; then
+    echo "[ERROR] No se encontró socket de PHP-FPM en /run/php"
+    exit 1
+  fi
+  echo "$SOCK"
+}
+
 set_static_ip() {
   IP3="${IP_MAP_ENP0S3[$ROLE]:-}"
   IP8="${IP_MAP_ENP0S8[$ROLE]:-}"
@@ -59,14 +66,22 @@ network:
   ethernets:
     enp0s3:
       dhcp4: no
-      addresses: [${IP3}/${NETMASK}]
-      gateway4: ${GATEWAY3}
-      nameservers: {addresses: [${DNS}]}
+      addresses:
+        - ${IP3}/${NETMASK}
+      nameservers:
+        addresses: [8.8.8.8, 8.8.4.4]
+      routes:
+        - to: 0.0.0.0/0
+          via: 10.10.10.1
+          metric: 100
     enp0s8:
       dhcp4: no
-      addresses: [${IP8}/${NETMASK}]
-      gateway4: ${GATEWAY8}
-      nameservers: {addresses: [${DNS}]}
+      addresses:
+        - ${IP8}/${NETMASK}
+      routes:
+        - to: 0.0.0.0/0
+          via: 20.20.20.1
+          metric: 200
 EOF
   netplan apply
   echo "[INFO] IP configuradas: enp0s3=$IP3, enp0s8=$IP8"
@@ -118,6 +133,7 @@ EOF
 
 setup_wordpress() {
   echo "[${ROLE}] Instalando WordPress"
+  PHP_SOCK=$(detect_php_sock)
   mkdir -p /var/www/wordpress
   wget -q https://wordpress.org/latest.tar.gz -O /tmp/wp.tar.gz
   tar xzvf /tmp/wp.tar.gz -C /var/www/wordpress --strip-components=1
@@ -137,13 +153,13 @@ server {
     server_name ${IP_MAP_ENP0S3[$ROLE]};
     root /var/www/wordpress;
     index index.php index.html;
-    
+
     location / {
         try_files \$uri \$uri/ /index.php?\$args;
     }
     location ~ \.php\$ {
         include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_pass unix:${PHP_SOCK};
     }
     location ~ /\.ht {
         deny all;
@@ -177,10 +193,17 @@ EOF
 }
 
 change_hostname() {
-  read -rp "Nuevo hostname: " NEWHOST
-  hostnamectl set-hostname "$NEWHOST"
-  sed -i "/127\.0\.1\.1/c\127.0.1.1 $NEWHOST" /etc/hosts
-  echo "[INFO] Hostname actualizado a $NEWHOST"
+  echo "Selecciona el nuevo hostname:"
+  select NEWHOST in master worker01 worker02 worker03 worker04; do
+    if [[ -n "$NEWHOST" ]]; then
+      hostnamectl set-hostname "$NEWHOST"
+      sed -i "/127\.0\.1\.1/c\127.0.1.1 $NEWHOST" /etc/hosts
+      echo "[INFO] Hostname actualizado a $NEWHOST"
+      break
+    else
+      echo "Opción inválida"
+    fi
+  done
 }
 
 main() {
@@ -194,12 +217,10 @@ main() {
         worker03) setup_mysql_master ;;
         worker04) setup_mysql_slave ;;
         worker01|worker02)
-          setup_wordpress
-          ;;
+          setup_wordpress ;;
         master) setup_load_balancer ;;
         *) echo "[ERROR] Rol desconocido: $ROLE"; exit 1 ;;
-      esac
-      ;;
+      esac ;;
     2) change_hostname ;;
     3) setup_load_balancer ;;
     4) setup_wordpress ;;
