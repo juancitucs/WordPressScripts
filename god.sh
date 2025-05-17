@@ -1,5 +1,7 @@
 
 #!/usr/bin/env bash
+
+
 set -euo pipefail
 
 # vm.sh: Configuración LEMP + WordPress + MySQL Replicación + LB
