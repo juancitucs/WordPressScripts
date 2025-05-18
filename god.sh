@@ -107,7 +107,7 @@ EOF
   local ml=$(mysql -uroot -p"$DB_ROOT_PASS" -h"${IP_MAP_ENP0S3[worker03]}" -e "SHOW MASTER STATUS\G")
   local file=$(echo "$ml" | awk '/File:/ {print $2}')
   local pos=$(echo "$ml" | awk '/Position:/ {print $2}')
-  mysql -uroot -p"$DB_ROOT_PASS" -e "
+  mysql -u root -p"$DB_ROOT_PASS" -e "
     CHANGE MASTER TO MASTER_HOST='${IP_MAP_ENP0S3[worker03]}', MASTER_USER='${DB_REPL_USER}', MASTER_PASSWORD='${DB_REPL_PASS}', MASTER_LOG_FILE='${file}', MASTER_LOG_POS=${pos}; START SLAVE;"
 }
 
