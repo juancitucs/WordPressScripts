@@ -98,7 +98,6 @@ EOF
 }
 
 setup_mysql_slave() {
-  read 
   cat >> /etc/mysql/mysql.conf.d/mysqld.cnf <<EOF
 server-id=2
 replicate-do-db=${WP_DB_NAME}
