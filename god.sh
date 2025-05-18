@@ -8,7 +8,7 @@ DB_REPL_PASS="$PASSWORD"
 WP_DB_PASS="$PASSWORD"
 WP_DB_USER="wordpress"
 WP_DB_NAME="wordpress"
-DB_REPL_USER="repl"
+DB_REPL_USER="replica"
 NETMASK="24"
 ROLE=$(hostnamectl hostname)
 
@@ -88,7 +88,7 @@ log_bin=mysql-bin
 binlog_do_db=${WP_DB_NAME}
 EOF
   systemctl restart mysql
-  mysql -uroot -p"$DB_ROOT_PASS" -e "
+  mysql -u root -p"$DB_ROOT_PASS" -e "
     CREATE USER IF NOT EXISTS '${DB_REPL_USER}'@'%' IDENTIFIED BY '${DB_REPL_PASS}';
     GRANT REPLICATION SLAVE ON *.* TO '${DB_REPL_USER}'@'%';
     CREATE DATABASE IF NOT EXISTS ${WP_DB_NAME};
@@ -98,6 +98,7 @@ EOF
 }
 
 setup_mysql_slave() {
+  read 
   cat >> /etc/mysql/mysql.conf.d/mysqld.cnf <<EOF
 server-id=2
 replicate-do-db=${WP_DB_NAME}
