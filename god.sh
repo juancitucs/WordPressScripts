@@ -88,7 +88,7 @@ log_bin=mysql-bin
 binlog_do_db=${WP_DB_NAME}
 EOF
   systemctl restart mysql
-  mysql -u root -p"$DB_ROOT_PASS" -e "
+  mysql -u root -p "$DB_ROOT_PASS" -e "
     CREATE USER IF NOT EXISTS '${DB_REPL_USER}'@'%' IDENTIFIED BY '${DB_REPL_PASS}';
     GRANT REPLICATION SLAVE ON *.* TO '${DB_REPL_USER}'@'%';
     CREATE DATABASE IF NOT EXISTS ${WP_DB_NAME};
@@ -104,11 +104,12 @@ server-id=2
 replicate-do-db=${WP_DB_NAME}
 EOF
   systemctl restart mysql
-  local ml=$(mysql -uroot -p"$DB_ROOT_PASS" -h"${IP_MAP_ENP0S3[worker03]}" -e "SHOW MASTER STATUS\G")
+  local ml=$(mysql -u root -p "$DB_ROOT_PASS" -h "${IP_MAP_ENP0S3[worker03]}" -e "SHOW MASTER STATUS\G")
   local file=$(echo "$ml" | awk '/File:/ {print $2}')
   local pos=$(echo "$ml" | awk '/Position:/ {print $2}')
-  mysql -u root -p"$DB_ROOT_PASS" -e "
-    CHANGE MASTER TO MASTER_HOST='${IP_MAP_ENP0S3[worker03]}', MASTER_USER='${DB_REPL_USER}', MASTER_PASSWORD='${DB_REPL_PASS}', MASTER_LOG_FILE='${file}', MASTER_LOG_POS=${pos}; START SLAVE;"
+  mysql -u root -p "$DB_ROOT_PASS" -e "
+    CHANGE MASTER TO MASTER_HOST='${IP_MAP_ENP0S3[worker03]}', MASTER_USER='${DB_REPL_USER}', MASTER_PASSWORD='${DB_REPL_PASS}', MASTER_LOG_FILE='${file}', MASTER_LOG_POS=${pos};
+    START SLAVE;"
 }
 
 setup_wordpress() {
